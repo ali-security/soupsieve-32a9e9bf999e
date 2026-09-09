@@ -1,5 +1,6 @@
 """Test language selectors."""
 from .. import util
+from soupsieve import SelectorSyntaxError
 
 
 class TestLang(util.TestCase):
@@ -121,6 +122,12 @@ class TestLang(util.TestCase):
             ['1', '2', '3', '4', '5', '6'],
             flags=util.HTML
         )
+
+    def test_bad_language_unclosed_quote(self):
+        """Test language with an unterminated quoted value fails for syntax error, not timeout error."""
+
+        self.assert_raises('p:lang("x', SelectorSyntaxError)
+        self.assert_no_catastrophic_backtracking('p:lang("' + ('x' * 300))
 
     def test_language_quoted_with_escaped_newline(self):
         """Test language (quoted) with escaped new line."""

@@ -1,5 +1,6 @@
 """Test attribute selectors."""
 from .. import util
+from soupsieve import SelectorSyntaxError
 
 
 class TestAttribute(util.TestCase):
@@ -50,3 +51,17 @@ class TestAttribute(util.TestCase):
             ["div", "0", "1", "2", "3", "pre", "4", "6"],
             flags=util.HTML5
         )
+
+    def test_bad_attribute_unclused(self):
+        """Test bad attribute fails for syntax error, not timeout error."""
+
+        # An unterminated, double quoted value is a syntax error ...
+        self.assert_raises('[a="x', SelectorSyntaxError)
+        # ... and a long one must fail just as quickly, not backtrack exponentially.
+        self.assert_no_catastrophic_backtracking('[a="' + ('x' * 300))
+
+    def test_bad_attribute_unclosed_single_quote(self):
+        """Test bad attribute with an unterminated single quoted value fails for syntax error."""
+
+        self.assert_raises("[a='x", SelectorSyntaxError)
+        self.assert_no_catastrophic_backtracking("[a='" + ('x' * 300))

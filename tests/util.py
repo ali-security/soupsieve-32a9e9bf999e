@@ -1,6 +1,8 @@
 """Test utilities."""
 import unittest
 import bs4
+import subprocess
+import sys
 import textwrap
 import soupsieve as sv
 import pytest
@@ -23,6 +25,14 @@ XHTML = 0x4
 XML = 0x8
 PYHTML = 0x10
 LXML_HTML = 0x20
+
+# Time (in seconds) a malformed selector is given to fail before we assume the pattern
+# is stuck backtracking. Compiling a malformed selector takes milliseconds, so this only
+# has to be generous enough to cover interpreter startup on a slow, loaded machine.
+BACKTRACK_TIMEOUT = 20
+# Compile the selector that is fed in on `stdin`. Quotes are deliberately avoided so
+# that the script is safe to pass as a command line argument on all platforms.
+BACKTRACK_SCRIPT = 'import sys, soupsieve; soupsieve.compile(sys.stdin.buffer.read().decode())'
 
 
 def skip_no_lxml(func):
@@ -102,6 +112,35 @@ class TestCase(unittest.TestCase):
         print('----Running Assert Test----')
         with self.assertRaises(exception):
             self.compile_pattern(pattern, namespaces=namespace, custom=custom)
+
+    def assert_no_catastrophic_backtracking(self, pattern):
+        """
+        Assert a malformed selector fails with a syntax error instead of backtracking forever.
+
+        The selector is compiled in a subprocess so that the attempt can be bounded on
+        every platform: `signal.alarm`, the usual way to interrupt a runaway pattern,
+        does not exist on Windows.
+        """
+
+        print('----Running Backtracking Test----')
+        print('PATTERN: ', pattern)
+        try:
+            result = subprocess.run(
+                [sys.executable, '-c', BACKTRACK_SCRIPT],
+                input=pattern.encode('utf-8'),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=BACKTRACK_TIMEOUT
+            )
+        except subprocess.TimeoutExpired:
+            self.fail(
+                'Compiling the malformed selector did not complete in {} seconds'.format(BACKTRACK_TIMEOUT)
+            )
+
+        error = result.stderr.decode('utf-8', 'replace')
+        print(error)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('SelectorSyntaxError', error)
 
     def assert_selector(self, markup, selectors, expected_ids, namespaces={}, custom=None, flags=0):
         """Assert selector."""

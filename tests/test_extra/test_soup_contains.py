@@ -127,6 +127,12 @@ class TestSoupContains(util.TestCase):
             flags=util.HTML
         )
 
+    def test_contains_unclosed_quote(self):
+        """Test contains with an unterminated quoted value fails for syntax error, not timeout error."""
+
+        self.assert_raises("body :-soup-contains('x", sv.SelectorSyntaxError)
+        self.assert_no_catastrophic_backtracking("body :-soup-contains('" + ('x' * 300))
+
     def test_contains_escapes(self):
         """Test contains with escape characters."""
 
